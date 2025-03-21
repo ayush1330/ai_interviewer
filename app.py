@@ -38,7 +38,7 @@ def main(answer_mode: str):
     # Initialize session state for messages if not already set
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "Hi! How may I assist you today?"}
+            {"role": "assistant", "content": "Hello, I'm your AI interviewer. Let's begin the interview. Could you tell me about your background?"}
         ]
 
     # Create footer container for the microphone

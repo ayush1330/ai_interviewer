@@ -17,5 +17,7 @@ openai-whisper
 ffmpeg-python
 pyaudio
 audio_recorder_streamlit
-pypdf2
+pypdf
 python-dotenv
+streamlit-float
+
