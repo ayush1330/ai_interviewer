@@ -7,20 +7,25 @@ from streamlit_float import *
 import tempfile
 from tempfile import NamedTemporaryFile
 
+
 def main(answer_mode: str):
     # Initialize float feature
     float_init()
 
-    st.title("OpenAI Conversational Chatbot 🤖")
+    st.title("AI Interview Assistant 🤖")
 
     # Prompt user to upload resume and cover letter PDFs
     st.sidebar.header("Upload Your Documents")
     resume_file = st.sidebar.file_uploader("Upload your resume (PDF)", type=["pdf"])
-    cover_letter_file = st.sidebar.file_uploader("Upload your cover letter (PDF)", type=["pdf"])
+    cover_letter_file = st.sidebar.file_uploader(
+        "Upload your cover letter (PDF)", type=["pdf"]
+    )
 
     # Ensure both files are uploaded before proceeding
     if resume_file is None or cover_letter_file is None:
-        st.sidebar.warning("Please upload both your resume and cover letter to proceed.")
+        st.sidebar.warning(
+            "Please upload both your resume and cover letter to proceed."
+        )
         st.stop()
 
     # Save uploaded files temporarily
@@ -38,7 +43,7 @@ def main(answer_mode: str):
     # Initialize session state for messages if not already set
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "Hello, I'm your AI interviewer. Let's begin the interview. Could you tell me about your background?"}
+            {"role": "assistant", "content": "Hi! How may I assist you today?"}
         ]
 
     # Create footer container for the microphone
@@ -73,7 +78,9 @@ def main(answer_mode: str):
                 if answer_mode == "base_model":
                     final_response = base_model_chatbot(st.session_state.messages)
                 elif answer_mode == "pdf_chat":
-                    final_response = with_pdf_chatbot(st.session_state.messages, vector_db)
+                    final_response = with_pdf_chatbot(
+                        st.session_state.messages, vector_db
+                    )
             with st.spinner("Generating audio response..."):
                 audio_file = text_to_speech(final_response)
                 autoplay_audio(audio_file)
@@ -86,5 +93,6 @@ def main(answer_mode: str):
     # Float the footer container at the bottom
     footer_container.float("bottom: 0rem;")
 
+
 if __name__ == "__main__":
-    main(answer_mode="pdf_chat")
+    main(answer_mode="pdf_chat")  # answer_mode="base_model"

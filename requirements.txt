@@ -1,4 +1,4 @@
-streamlit==1.31.0
+streamlit
 # Using specific version matching for LangChain packages to ensure compatibility
 langchain==0.1.12
 langchain_openai==0.0.6
