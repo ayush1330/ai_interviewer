@@ -61,7 +61,7 @@ class VectorDB:
 class ConversationalRetrievalChain:
     """Class to manage the QA chain setup."""
 
-    def __init__(self, model_name="gpt-3.5-turbo", temperature=0):
+    def __init__(self, model_name="gpt-4o", temperature=0):
         self.model_name = model_name
         self.temperature = temperature
 
@@ -86,9 +86,21 @@ class ConversationalRetrievalChain:
 
 
 def with_pdf_chatbot(messages, vector_db: VectorDB):
-    """Main function to execute the QA system."""
+    """Main function to execute the QA system with context and retrieval."""
+    # Define the system message to guide the LLM
+    system_message = [
+        {
+            "role": "system",
+            "content": "You are an AI interviewer for AI-related and behavioral roles. Ask interview questions, evaluate candidate responses, and provide constructive feedback. Adapt your follow-up questions based on the candidate's previous answers.",
+        }
+    ]
+
+    # Combine the system message with the user messages
+    messages = system_message + messages
     query = messages[-1]["content"].strip()
 
+    # Initialize the conversational retrieval chain
     qa_chain = ConversationalRetrievalChain().create_chain(vector_db)
     result = qa_chain({"query": query})
+
     return result["result"]
