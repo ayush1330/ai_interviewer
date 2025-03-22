@@ -1,14 +1,13 @@
 import streamlit as st
 import os
 from helpers import text_to_speech, autoplay_audio, speech_to_text
-from generate_answer import base_model_chatbot, with_pdf_chatbot, VectorDB
+from generate_answer import conduct_interview, VectorDB
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import *
-import tempfile
 from tempfile import NamedTemporaryFile
 
 
-def main(answer_mode: str):
+def main():
     # Initialize float feature
     float_init()
 
@@ -40,11 +39,27 @@ def main(answer_mode: str):
     # Initialize VectorDB with the paths of the uploaded PDFs
     vector_db = VectorDB([resume_path, cover_letter_path])
 
-    # Initialize session state for messages if not already set
+    # Initialize session state for messages and interview stage if not already set
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "Hi! How may I assist you today?"}
+            {
+                "role": "assistant",
+                "content": "Welcome to your AI interview session. I'll be conducting a structured technical and behavioral interview for an AI-related position. I've reviewed your resume and cover letter, and I'll be asking questions based on your experience. Let's begin: Tell me about your background in AI and what specific areas you specialize in.",
+            }
         ]
+
+    if "interview_stage" not in st.session_state:
+        st.session_state.interview_stage = {
+            "current": "introduction",
+            "stages": [
+                "introduction",
+                "technical",
+                "behavioral",
+                "experience",
+                "closing",
+            ],
+            "questions_asked": 0,
+        }
 
     # Create footer container for the microphone
     footer_container = st.container()
@@ -75,12 +90,30 @@ def main(answer_mode: str):
     if st.session_state.messages[-1]["role"] != "assistant":
         with st.chat_message("assistant"):
             with st.spinner("Thinking🤔..."):
-                if answer_mode == "base_model":
-                    final_response = base_model_chatbot(st.session_state.messages)
-                elif answer_mode == "pdf_chat":
-                    final_response = with_pdf_chatbot(
-                        st.session_state.messages, vector_db
+                # Pass the interview stage to the conduct_interview function
+                final_response = conduct_interview(
+                    st.session_state.messages,
+                    vector_db,
+                    st.session_state.interview_stage,
+                )
+
+                # Update interview stage - increment questions asked
+                st.session_state.interview_stage["questions_asked"] += 1
+
+                # Progress to next stage based on number of questions
+                if st.session_state.interview_stage["questions_asked"] >= 2:
+                    stages = st.session_state.interview_stage["stages"]
+                    current_index = stages.index(
+                        st.session_state.interview_stage["current"]
                     )
+
+                    # Move to next stage if not already at the last stage
+                    if current_index < len(stages) - 1:
+                        st.session_state.interview_stage["current"] = stages[
+                            current_index + 1
+                        ]
+                        st.session_state.interview_stage["questions_asked"] = 0
+
             with st.spinner("Generating audio response..."):
                 audio_file = text_to_speech(final_response)
                 autoplay_audio(audio_file)
@@ -95,4 +128,4 @@ def main(answer_mode: str):
 
 
 if __name__ == "__main__":
-    main(answer_mode="pdf_chat")  # answer_mode="base_model"
+    main()
