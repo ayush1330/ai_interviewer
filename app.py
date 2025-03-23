@@ -44,7 +44,13 @@ def main():
         st.session_state.messages = [
             {
                 "role": "assistant",
-                "content": "Welcome to your AI interview session. I'll be conducting a structured technical and behavioral interview for an AI-related position. I've reviewed your resume and cover letter, and I'll be asking questions based on your experience. Let's begin: Tell me about your background in AI and what specific areas you specialize in.",
+                "content": "Hello, and welcome to your interview session!"
+                "I'll be your interviewer today, focusing on both the technical"
+                "and behavioral aspects of your background. I've reviewed your"
+                "resume and cover letter, so I'll be asking questions about your"
+                "experiences, achievements, and perspectives."
+                "Could you start by telling me about your background and"
+                "which areas you're most passionate about?"
             }
         ]
 

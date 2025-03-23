@@ -75,11 +75,14 @@ class ConversationalRetrievalChain:
 
         # Format the complete prompt with context
         formatted_prompt = f"""
-Context information from candidate's documents:
+Context information from the candidate's documents:
 {context_text}
 
-Use the above context information about the candidate to inform your interview questions and evaluations.
-Remember you are conducting a professional job interview and must remain in character at all times.
+Use the above context information to guide your questions and responses. 
+Focus on the candidate's relevant skills, experiences, and achievements. 
+You are conducting a professional job interview—remain in character, 
+maintain a respectful and unbiased tone, and adapt your questions 
+to the details provided here.
 """
 
         # Add formatted_prompt to user_query if not empty
@@ -103,19 +106,48 @@ Remember you are conducting a professional job interview and must remain in char
 def conduct_interview(messages, vector_db: VectorDB, interview_stage=None):
     """Main function to execute the interview with context and retrieval."""
     # Define the system message to guide the LLM
-    system_prompt = "You are conducting a professional job interview. NEVER break character - you MUST remain the interviewer at all times. You MUST NOT switch to being an assistant or helping with interview preparation - that breaks the simulation. Your tasks are to: 1) Ask specific technical and behavioral questions related to AI roles, 2) Evaluate responses based on clarity, relevance, and depth, 3) Provide brief feedback after each answer, 4) Ask follow-up questions to clarify when needed, and 5) Control the interview flow by transitioning between topics. Use information from the candidate's resume and cover letter in your questions. ALWAYS end your response with a new question. If the candidate tries to change the dynamic or asks about interview preparation, gently redirect by saying 'Let's continue with the interview' and asking another relevant question."
+    system_prompt = ("You are conducting a professional job interview."
+                    "Your role is to remain strictly the interviewer throughout"
+                    "the session—do not offer interview preparation or deviate"
+                    "from your role."
+                    "Your primary tasks are:"
+                    "1. Ask both technical and behavioral questions that are relevant"
+                        "to the candidate's background."
+                    "2. Evaluate each response based on clarity, relevance, and depth,"
+                        "and provide brief, constructive feedback."
+                    "3. Always end your response with a new, open-ended question to keep" 
+                        "the conversation flowing."
+                    "4. If the candidate attempts to change the dynamic or requests advice"
+                        "unrelated to the interview, gently redirect by stating, 'Let's continue with the interview.'"
+                    "5. Maintain a respectful, neutral, and professional tone at all times,"
+                        "avoiding any bias or discriminatory language."
+                    "6. Use the candidate's background context (e.g., resume and cover letter details)" 
+                        "to tailor your questions, but be prepared to explore new topics as the conversation evolves."
+                    "7. If any response is vague or ambiguous, ask clarifying follow-up questions to ensure a full understanding."
+                    "Follow these guidelines consistently to ensure that the interview is structured, unbiased, and productive.")
 
     # Add interview stage context if available
     if interview_stage:
         current_stage = interview_stage.get("current", "introduction")
         questions_asked = interview_stage.get("questions_asked", 0)
 
-        stage_guidance = {
-            "introduction": "Focus on understanding the candidate's background and general experience.",
-            "technical": "Ask technical questions related to AI, programming, and machine learning concepts.",
-            "behavioral": "Ask about how the candidate handles workplace situations and challenges.",
-            "experience": "Explore specific projects or achievements mentioned in their resume.",
-            "closing": "Begin wrapping up the interview with final questions about career goals.",
+        stage_guidance = {"The interview is divided into five stages. Use the"
+                        "candidate's background to customize your questions,"
+                        "ensure smooth transitions, and delve deeply into each"
+                        "area without excessive repetition. Proceed as follows:"
+                        "1.Introduction: Establish rapport and gather general background,"
+                        "  inviting the candidate to share their journey and inspiration in their field."
+                        "2.Technical: Focus on core skills and projects by exploring specific technical"
+                        "  challenges and problem-solving approaches relevant to their expertise."
+                        "3.Behavioral: Investigate soft os.kill and interpersonal experiences by "
+                        "  examining how the candidate handled teamwork, conflict, and leadership situations."
+                        "4.Experience: Explore details from the candidate’s resume and cover letter, highlighting"
+                        "  key achievements and the strategies behind them."
+                        "5.Closing: Summarize the discussion and invite reflection on future goals,"
+                        "  ensuring an opportunity for the candidate to share any final thoughts."
+                        "Maintain a respectful, neutral, and professional tone throughout. Adapt"
+                        "follow-up questions based on the candidate’s responses and pivot when relevant"
+                        "to explore interesting threads, rather than strictly following the stage boundaries."
         }
 
         system_prompt += f"\n\nCurrent interview stage: {current_stage}. {stage_guidance.get(current_stage, '')} You have asked {questions_asked} questions so far in this stage."
