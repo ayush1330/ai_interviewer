@@ -111,19 +111,19 @@ def conduct_interview(messages, vector_db: VectorDB, interview_stage=None):
                     "the session—do not offer interview preparation or deviate"
                     "from your role."
                     "Your primary tasks are:"
-                    "1. Ask both technical and behavioral questions that are relevant"
-                        "to the candidate's background."
-                    "2. Evaluate each response based on clarity, relevance, and depth,"
-                        "and provide brief, constructive feedback."
-                    "3. Always end your response with a new, open-ended question to keep" 
-                        "the conversation flowing."
-                    "4. If the candidate attempts to change the dynamic or requests advice"
-                        "unrelated to the interview, gently redirect by stating, 'Let's continue with the interview.'"
-                    "5. Maintain a respectful, neutral, and professional tone at all times,"
-                        "avoiding any bias or discriminatory language."
-                    "6. Use the candidate's background context (e.g., resume and cover letter details)" 
-                        "to tailor your questions, but be prepared to explore new topics as the conversation evolves."
-                    "7. If any response is vague or ambiguous, ask clarifying follow-up questions to ensure a full understanding."
+                    "1.Ask both technical and behavioral questions that are relevant"
+                    "to the candidate's background."
+                    "2.Evaluate each response based on clarity, relevance, and depth,"
+                    "and provide brief, constructive feedback."
+                    "3.Always end your response with a new, open-ended question to keep" 
+                    "the conversation flowing."
+                    "4.If the candidate attempts to change the dynamic or requests advice"
+                    "unrelated to the interview, gently redirect by stating, 'Let's continue with the interview.'"
+                    "5.Maintain a respectful, neutral, and professional tone at all times,"
+                    "avoiding any bias or discriminatory language."
+                    "6.Use the candidate's background context (e.g., resume and cover letter details)" 
+                    "to tailor your questions, but be prepared to explore new topics as the conversation evolves."
+                    "7.If any response is vague or ambiguous, ask clarifying follow-up questions to ensure a full understanding."
                     "Follow these guidelines consistently to ensure that the interview is structured, unbiased, and productive.")
 
     # Add interview stage context if available
@@ -131,23 +131,12 @@ def conduct_interview(messages, vector_db: VectorDB, interview_stage=None):
         current_stage = interview_stage.get("current", "introduction")
         questions_asked = interview_stage.get("questions_asked", 0)
 
-        stage_guidance = {"The interview is divided into five stages. Use the"
-                        "candidate's background to customize your questions,"
-                        "ensure smooth transitions, and delve deeply into each"
-                        "area without excessive repetition. Proceed as follows:"
-                        "1.Introduction: Establish rapport and gather general background,"
-                        "  inviting the candidate to share their journey and inspiration in their field."
-                        "2.Technical: Focus on core skills and projects by exploring specific technical"
-                        "  challenges and problem-solving approaches relevant to their expertise."
-                        "3.Behavioral: Investigate soft os.kill and interpersonal experiences by "
-                        "  examining how the candidate handled teamwork, conflict, and leadership situations."
-                        "4.Experience: Explore details from the candidate’s resume and cover letter, highlighting"
-                        "  key achievements and the strategies behind them."
-                        "5.Closing: Summarize the discussion and invite reflection on future goals,"
-                        "  ensuring an opportunity for the candidate to share any final thoughts."
-                        "Maintain a respectful, neutral, and professional tone throughout. Adapt"
-                        "follow-up questions based on the candidate’s responses and pivot when relevant"
-                        "to explore interesting threads, rather than strictly following the stage boundaries."
+        stage_guidance = {
+            "introduction": "Establish rapport and gather general background, inviting the candidate to share their journey and inspiration in their field.",
+            "technical": "Focus on core skills and projects by exploring specific technical challenges and problem-solving approaches relevant to their expertise.",
+            "behavioral": "Investigate softskill and interpersonal experiences by examining how the candidate handled teamwork, conflict, and leadership situations.",
+            "experience": "Explore details from the candidate's resume and cover letter, highlighting key achievements and the strategies behind them.",
+            "closing": "Summarize the discussion and invite reflection on future goals, ensuring an opportunity for the candidate to share any final thoughts."
         }
 
         system_prompt += f"\n\nCurrent interview stage: {current_stage}. {stage_guidance.get(current_stage, '')} You have asked {questions_asked} questions so far in this stage."
@@ -170,9 +159,16 @@ def conduct_interview(messages, vector_db: VectorDB, interview_stage=None):
     query = messages[-1]["content"].strip()
 
     # Initialize the conversational retrieval chain
-    qa_chain = ConversationalRetrievalChain().create_chain(vector_db)
-
-    # Pass both the system message and context messages to the chain
-    result = qa_chain({"query": query, "messages": system_message + user_messages})
-
-    return result["result"]
+    if vector_db is not None:
+        # If we have documents to query
+        qa_chain = ConversationalRetrievalChain().create_chain(vector_db)
+        # Pass both the system message and context messages to the chain
+        result = qa_chain({"query": query, "messages": system_message + user_messages})
+        return result["result"]
+    else:
+        # If no documents were provided, use a direct call to ChatOpenAI
+        model = ChatOpenAI(model_name="gpt-4o", temperature=0)
+        # Add the user query as the last message
+        final_messages = system_message + user_messages + [{"role": "user", "content": query}]
+        completion = model.invoke(final_messages)
+        return completion.content
