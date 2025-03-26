@@ -32,7 +32,7 @@ def generate_podcast_script(report_text: str) -> str:
     # Create the system prompt for the podcast script generation
     system_prompt = """
     You are an engaging podcast host who specializes in career development and interview coaching.
-    Create an engaging, conversational 8-minute podcast monologue based on an interview evaluation report.
+    Create an engaging, conversational podcast monologue based on the interview evaluation report provided.
     
     Your podcast should:
     1. Have a friendly, informative tone
@@ -45,7 +45,7 @@ def generate_podcast_script(report_text: str) -> str:
     
     Format your script to indicate speaker emphasis and pauses where appropriate.
     The podcast should feel like a coach giving personalized feedback in a supportive manner.
-    Keep the total length appropriate for an 5-minute podcast (approximately 700-1,000 words).
+    Keep the total length appropriate for an 5-minute podcast (approximately 300-500 words).
     """
 
     # Prepare the messages for the API call
