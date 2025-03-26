@@ -2,8 +2,9 @@ import os
 import streamlit as st
 from openai import OpenAI
 from dotenv import load_dotenv
-from helpers import text_to_speech, autoplay_audio
+from helpers import text_to_speech, autoplay_audio, speech_to_text
 import time
+from audio_recorder_streamlit import audio_recorder
 
 # Load environment variables
 load_dotenv()
@@ -16,36 +17,32 @@ PODCASTS_DIR = "podcasts"
 os.makedirs(PODCASTS_DIR, exist_ok=True)
 
 
-def generate_podcast_script(report_text: str) -> str:
+def generate_podcast_script(report_text: str, interview_script: str) -> str:
     """
-    Generate a podcast script from an interview evaluation report.
+    Generate a podcast script from an interview evaluation report and interview script.
 
     Args:
         report_text (str): The interview evaluation report text
+        interview_script (str): The interview script text
 
     Returns:
-        str: A podcast-style script based on the evaluation
+        str: A podcast-style script based on the evaluation and interview script
     """
     # Print debug information
-    print(f"Starting podcast script generation. Report text length: {len(report_text)}")
+    print(f"Starting podcast script generation. Report text length: {len(report_text)}, Interview script length: {len(interview_script)}")
 
     # Create the system prompt for the podcast script generation
     system_prompt = """
-    You are an engaging podcast host who specializes in career development and interview coaching.
-    Create an engaging, conversational podcast monologue based on the interview evaluation report provided.
-    
-    Your podcast should:
-    1. Have a friendly, informative tone
-    2. Start with a brief introduction of the podcast and episode topic
-    3. Highlight the key strengths identified in the report
-    4. Tactfully discuss areas for improvement
-    5. Provide actionable advice based on the report's recommendations
-    6. Include transitions between sections
-    7. End with encouraging closing remarks
-    
-    Format your script to indicate speaker emphasis and pauses where appropriate.
-    The podcast should feel like a coach giving personalized feedback in a supportive manner.
-    Keep the total length appropriate for an 5-minute podcast (approximately 300-500 words).
+    You are a friendly, experienced host and coach specializing in interview coaching. Based on the interview script and evaluation report, create A cohesive podcast script (300-500 words) that includes a friendly introduction, specific feedback from the interview, actionable advice, balanced strengths and improvement points, smooth transitions between sections, and an encouraging conclusion—all delivered in a supportive, coach-like manner:
+    - Begin with a brief introduction to the podcast and the episode's topic.
+    - Quote specific moments from the interview where the candidate could have improved. For example, “When you mentioned, I faced challenges while building the project, you could have elaborated on which specific challenges and how you overcame them.”  
+    - Identify and emphasize strength from the evaluation report. Explain how this strength contributes positively to the candidate's overall performance. 
+    - Clearly outline areas where the candidate can improve it's mistakes by referencing specific points from the script.  
+    - Use transitions to smoothly move from discussing strengths to areas for improvement. For instance, “While your explanation about project specifics was strong, there's room to improve by adding more measurable results.”
+    - Offer concrete suggestions on how to refine their answers, such as “Include more details about your results,” “Showcase teamwork by describing your collaboration process,” or “Clarify your role with concrete examples.”  
+    - Use clear, conversational transition phrases to guide listeners from one topic to the next, ensuring the monologue flows naturally.
+    - Conclude with a concise, uplifting summary that motivates the candidate to keep practicing.  
+    - Reaffirm the candidate's potential and leave the listener with an encouraging message, using brief pauses to create a dynamic podcast feel.
     """
 
     # Prepare the messages for the API call
@@ -53,7 +50,7 @@ def generate_podcast_script(report_text: str) -> str:
         {"role": "system", "content": system_prompt},
         {
             "role": "user",
-            "content": f"Here is the interview evaluation report:\n\n{report_text}",
+            "content": f"Here is the interview evaluation report:\n\n{report_text}\n\nHere is the interview script:\n\n{interview_script}",
         },
     ]
 
@@ -155,8 +152,9 @@ def create_podcast_from_evaluation():
         )
 
         # Generate podcast script from the evaluation
-        with st.spinner("Generating podcast script..."):
-            podcast_script = generate_podcast_script(evaluation_text)
+        with st.spinner("Generating podcast script from your interview evaluation..."):
+            interview_script = "\n".join(st.session_state.interview_script)  # Join the list into a single string
+            podcast_script = generate_podcast_script(evaluation_text, interview_script)
             if not podcast_script or podcast_script.startswith("We couldn't generate"):
                 st.error("Failed to generate podcast script. Please try again.")
                 return None
@@ -183,3 +181,28 @@ def create_podcast_from_evaluation():
         print(f"Error creating podcast: {e}")
         st.error(f"Error creating podcast: {str(e)}")
         return None
+
+
+if "interview_script" not in st.session_state:
+    st.session_state.interview_script = []
+
+# Create footer container for the microphone
+footer_container = st.container()
+with footer_container:
+    audio_bytes = audio_recorder()  # Initialize audio_bytes from the audio recorder
+
+# Process audio input if available
+if audio_bytes:
+    with st.spinner("Transcribing..."):
+        webm_file_path = "temp_audio.mp3"
+        with open(webm_file_path, "wb") as f:
+            f.write(audio_bytes)
+        transcript = speech_to_text(webm_file_path)
+        if transcript:
+            st.session_state.messages.append(
+                {"role": "user", "content": transcript}
+            )
+            st.session_state.interview_script.append(transcript)  # Store the transcript
+            with st.chat_message("user"):
+                st.write(transcript)
+            os.remove(webm_file_path)
