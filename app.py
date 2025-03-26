@@ -139,19 +139,16 @@ def main():
 
     # Initialize session state for messages and interview stage if not already set
     if "messages" not in st.session_state:
-        initial_greeting = ("Hello, and welcome to your interview session! "
-                           "I'll be your interviewer today, focusing on both the technical "
-                           "and behavioral aspects of your background. "
-                           f"{'I have reviewed your documents' if pdf_paths else 'Based on your information'}, "
-                           "I'll be asking questions about your "
-                           "experiences, achievements, and perspectives. "
-                           "I'll ask you 3 questions, and then provide an evaluation. "
-                           "Could you start by telling me about your background and "
-                           "which areas you're most passionate about?")
+        initial_greeting = ("Hello and welcome to your interview session!"
+                            "I'm delighted to speak with you today.{If pdf_paths exist: “I've had"
+                            "the chance to review your documents,”} otherwise: “Based on"
+                            "the information you provided,” I'll be asking about your"
+                            "experiences, and perspectives. Could you start"
+                            "by telling me a bit about your background and the areas you're most passionate about?")
         
         st.session_state.messages = [
             {
-                "role": "assistant",
+                "role": "assitstant",
                 "content": initial_greeting
             }
         ]
