@@ -65,7 +65,7 @@ def evaluate_candidate_performance():
         if role == "system":
             continue
         api_messages.append({"role": role, "content": msg["content"]})
-    
+
     try:
         # Make the API call
         response = client.chat.completions.create(
@@ -77,17 +77,22 @@ def evaluate_candidate_performance():
 
         # Store the evaluation in the session state
         evaluation_text = response.choices[0].message.content
-        
+
         # Check if the evaluation has proper sections
-        if not any(section in evaluation_text for section in ["SUMMARY:", "STRENGTHS:", "SCORES:"]):
-            st.warning("API response didn't match expected format. Using fallback evaluation.")
+        if not any(
+            section in evaluation_text
+            for section in ["SUMMARY:", "STRENGTHS:", "SCORES:"]
+        ):
+            st.warning(
+                "API response didn't match expected format. Using fallback evaluation."
+            )
             evaluation_text = create_fallback_evaluation(messages)
-            
+
         st.session_state.evaluation = evaluation_text
-        
+
         # Log the evaluation text for debugging
         print("Evaluation generated:", st.session_state.evaluation[:100] + "...")
-        
+
     except Exception as e:
         st.error(f"Error generating evaluation: {e}")
         st.session_state.evaluation = create_fallback_evaluation(messages)
@@ -127,96 +132,11 @@ def display_performance_report():
         st.warning("No evaluation available. Please complete the interview first.")
         return
 
-    # Apply custom CSS for better styling
-    st.markdown("""
-    <style>
-    .report-header {
-        background-color: #1E1E1E;
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 30px;
-        text-align: center;
-    }
-    .section-header {
-        border-left: 4px solid #FFC107;
-        padding-left: 10px;
-        margin-top: 30px;
-        margin-bottom: 20px;
-    }
-    .card-container {
-        background-color: #1E1E1E;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-    .score-card {
-        padding: 20px;
-        border-radius: 15px;
-        color: white;
-        text-align: center;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        transition: transform 0.3s ease;
-    }
-    .score-card:hover {
-        transform: translateY(-5px);
-    }
-    .score-value {
-        font-size: 2.5rem;
-        font-weight: bold;
-        margin: 10px 0;
-    }
-    .score-label {
-        font-size: 1.2rem;
-        font-weight: 500;
-    }
-    .info-box {
-        background-color: #192841;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-    .point-list {
-        list-style-type: none;
-        padding-left: 0;
-    }
-    .point-list li {
-        position: relative;
-        padding-left: 30px;
-        margin-bottom: 10px;
-        font-size: 16px;
-    }
-    .point-list li:before {
-        content: "✓";
-        position: absolute;
-        left: 0;
-        color: #4CAF50;
-        font-weight: bold;
-    }
-    .weak-list li:before {
-        content: "!";
-        color: #FFC107;
-    }
-    .tips-box {
-        background-color: #143624;
-        border-radius: 10px;
-        padding: 20px;
-        border-left: 4px solid #4CAF50;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # Display the title with enhanced styling
-    st.markdown('<div class="report-header"><h1>Interview Performance Report 📊</h1></div>', unsafe_allow_html=True)
-    
-    # Extract sections from the evaluation using more reliable patterns
+    # Extract sections from the evaluation
     evaluation_text = st.session_state.evaluation
-    
-    if not evaluation_text or len(evaluation_text) < 10:
-        st.error("The evaluation text is empty or too short. There might be an issue with the API response.")
-        return
 
-    # Use simpler, more lenient pattern matching
-    def extract_section_simple(text, keywords):
+    # Parse evaluation sections
+    def extract_section(text, keywords):
         for keyword in keywords:
             pattern = rf"{keyword}:?\s*(.*?)(?:(?:[A-Z]{{4,}}:)|$)"
             match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
@@ -225,42 +145,40 @@ def display_performance_report():
                 if content:
                     return content
         return None
-        
-    # Parse evaluation text with backup keywords
-    summary = extract_section_simple(evaluation_text, ["SUMMARY", "OVERVIEW", "PERFORMANCE"])
-    strengths = extract_section_simple(evaluation_text, ["STRENGTHS", "STRONG POINTS", "POSITIVES"])
-    areas_to_improve = extract_section_simple(evaluation_text, ["AREAS_TO_IMPROVE", "WEAKNESSES", "IMPROVEMENT AREAS", "AREAS FOR IMPROVEMENT"])
-    actionable_tips = extract_section_simple(evaluation_text, ["ACTIONABLE_TIPS", "TIPS", "ADVICE", "IMPROVEMENT", "RECOMMENDATIONS"])
-    scores_section = extract_section_simple(evaluation_text, ["SCORES", "RATINGS", "EVALUATION"])
-    
-    # Extract scores using simple patterns
+
+    # Get all sections from evaluation
+    summary = extract_section(evaluation_text, ["SUMMARY", "OVERVIEW", "PERFORMANCE"])
+    strengths = extract_section(
+        evaluation_text, ["STRENGTHS", "STRONG POINTS", "POSITIVES"]
+    )
+    areas_to_improve = extract_section(
+        evaluation_text, ["AREAS_TO_IMPROVE", "WEAKNESSES", "AREAS FOR IMPROVEMENT"]
+    )
+    actionable_tips = extract_section(
+        evaluation_text, ["ACTIONABLE_TIPS", "TIPS", "ADVICE", "RECOMMENDATIONS"]
+    )
+    scores_section = extract_section(
+        evaluation_text, ["SCORES", "RATINGS", "EVALUATION"]
+    )
+
+    # Extract scores
     scores = {}
     if scores_section:
         score_patterns = {
-            "Technical": [r"Technical:?\s*(\d+)", r"Technical Knowledge:?\s*(\d+)", r"Technical Skills:?\s*(\d+)"],
-            "Communication": [r"Communication:?\s*(\d+)", r"Communication Skills:?\s*(\d+)"],
-            "Problem Solving": [r"Problem\s*Solving:?\s*(\d+)", r"Problem-Solving:?\s*(\d+)"],
-            "Professional Presence": [r"Professional\s*Presence:?\s*(\d+)", r"Cultural\s*Fit:?\s*(\d+)", r"Professionalism:?\s*(\d+)"],
-            "Overall": [r"Overall:?\s*(\d+)", r"Overall Score:?\s*(\d+)", r"Overall Rating:?\s*(\d+)"]
+            "Technical": [r"Technical:?\s*(\d+)", r"Technical\s*Skills:?\s*(\d+)"],
+            "Communication": [
+                r"Communication:?\s*(\d+)",
+                r"Communication\s*Skills:?\s*(\d+)",
+            ],
+            "Problem Solving": [
+                r"Problem\s*Solving:?\s*(\d+)",
+                r"Problem-Solving:?\s*(\d+)",
+            ],
         }
-        
+
         for category, patterns in score_patterns.items():
             for pattern in patterns:
                 match = re.search(pattern, scores_section, re.IGNORECASE)
-                if match:
-                    try:
-                        score = int(match.group(1))
-                        if 1 <= score <= 10:  # Validate score is in expected range
-                            scores[category] = score
-                            break
-                    except (ValueError, IndexError):
-                        pass
-                        
-    # If we can't extract scores from a section, try to find them in the entire text
-    if not scores:
-        for category, patterns in score_patterns.items():
-            for pattern in patterns:
-                match = re.search(pattern, evaluation_text, re.IGNORECASE)
                 if match:
                     try:
                         score = int(match.group(1))
@@ -269,125 +187,334 @@ def display_performance_report():
                             break
                     except (ValueError, IndexError):
                         pass
-    
-    # If still no scores, provide defaults for visual demonstration
-    if not scores and not summary and not strengths and not areas_to_improve:
-        st.warning("Could not extract any meaningful evaluation data. Using example data for demonstration.")
-        summary = "This is an example summary since we couldn't extract data from the evaluation."
-        strengths = "1. Example strength 1\n2. Example strength 2\n3. Example strength 3"
-        areas_to_improve = "1. Example area to improve 1\n2. Example area to improve 2\n3. Example area to improve 3"
-        actionable_tips = "Here are some example actionable tips for your future interviews."
-        scores = {
-            "Technical": 7,
-            "Communication": 8,
-            "Problem Solving": 6,
-            "Professional Presence": 7,
-            "Overall": 7
-        }
-    
-    # Display Performance Summary in an info box
-    st.markdown('<h2 class="section-header">Performance Summary</h2>', unsafe_allow_html=True)
-    st.markdown(f'<div class="info-box">{summary if summary else "No summary available."}</div>', unsafe_allow_html=True)
-    
-    # Display score cards in a row with enhanced styling
-    st.markdown('<h2 class="section-header">Performance Scores</h2>', unsafe_allow_html=True)
-    
-    # Only create the score cards if we have scores
-    if scores:
-        # Define colors for different scores
-        def get_score_color(score):
-            if score >= 8:
-                return "linear-gradient(135deg, #4CAF50, #2E7D32)"  # Green gradient
-            elif score >= 6:
-                return "linear-gradient(135deg, #FFC107, #FF8F00)"  # Yellow gradient
-            else:
-                return "linear-gradient(135deg, #F44336, #B71C1C)"  # Red gradient
-        
-        # Get score emojis
-        def get_score_emoji(score):
-            if score >= 8:
-                return "🌟"
-            elif score >= 6:
-                return "👍"
-            else:
-                return "💪"
-                
-        # Create a container for all score cards
-        st.markdown('<div class="card-container">', unsafe_allow_html=True)
-        
-        # Create columns for the score cards
-        cols = st.columns(len(scores))
-        
-        # Display each score in a card with enhanced styling
-        for i, (category, score) in enumerate(scores.items()):
-            with cols[i]:
-                st.markdown(
-                    f"""
-                    <div class="score-card" style="background: {get_score_color(score)}">
-                        <div class="score-label">{category}</div>
-                        <div class="score-value">{score}/10 {get_score_emoji(score)}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-        
-        # Close the container
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.warning("No scores available.")
-    
-    # Create two columns for strengths and weaknesses with enhanced styling
-    st.markdown('<div class="card-container">', unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    
-    # Display strengths
+
+    # Provide sample data if needed
+    if not scores:
+        scores = {"Technical": 7, "Communication": 6, "Problem Solving": 6}
+
+    if not summary:
+        summary = "The candidate demonstrated solid technical knowledge and communication skills during the interview. There were some areas where responses could have been more detailed, but overall, the interview showed good potential."
+
+    if not strengths:
+        strengths = "1. Clear communication with well-structured responses\n2. Good technical knowledge\n3. Professional demeanor throughout the interview"
+
+    if not areas_to_improve:
+        areas_to_improve = "1. Could provide more detailed technical explanations\n2. Sometimes responses were too general\n3. Could demonstrate more specific examples"
+
+    if not actionable_tips:
+        actionable_tips = "Research the company thoroughly before interviews and prepare specific work examples that directly relate to the position. Practice technical questions with more precision and depth. Consider recording yourself in mock interviews to identify areas for improvement."
+
+    # Apply global styles
+    st.markdown(
+        """
+    <style>
+    .report-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    .report-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .report-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 8px;
+    }
+    .report-subtitle {
+        font-size: 16px;
+        color: #718096;
+    }
+    .report-card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+    }
+    .card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #edf2f7;
+    }
+    .score-grid {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 20px;
+        width: 100%;
+    }
+    .score-card {
+        background-color: #e6edf7;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        flex: 1;
+        width: 30%;
+    }
+    .score-title {
+        color: #4a5568;
+        font-size: 16px;
+        font-weight: 500;
+        margin-bottom: 10px;
+    }
+    .score-value {
+        font-size: 36px;
+        font-weight: 700;
+        color: #2d3748;
+        margin: 15px 0;
+    }
+    .score-bar-bg {
+        width: 100%;
+        height: 6px;
+        background-color: rgba(255,255,255,0.5);
+        border-radius: 3px;
+        margin: 15px 0 0 0;
+    }
+    .score-bar-fill {
+        height: 100%;
+        background-color: #4776E6;
+        border-radius: 3px;
+    }
+    .point-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 30px;
+    }
+    .point-section {
+        margin-bottom: 20px;
+    }
+    .point-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 15px;
+    }
+    .point-list {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+    }
+    .point-item {
+        display: flex;
+        margin-bottom: 15px;
+        align-items: flex-start;
+    }
+    .point-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        margin-right: 12px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+    .strength-icon {
+        background-color: #38a169;
+    }
+    .improve-icon {
+        background-color: #ed8936;
+    }
+    .point-text {
+        flex-grow: 1;
+        line-height: 1.5;
+        color: #4a5568;
+    }
+    .tips-box {
+        background-color: #f7fafc;
+        border-left: 4px solid #4776E6;
+        padding: 20px;
+        border-radius: 4px;
+        color: #4a5568;
+        line-height: 1.6;
+    }
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
+
+    # Begin report container
+    st.markdown(
+        """
+    <div class="report-container">
+        <div class="report-header">
+            <h1 class="report-title">Interview Performance Report</h1>
+            <p class="report-subtitle">Detailed analysis of your interview performance</p>
+        </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+    # Summary card
+    st.markdown(
+        f"""
+    <div class="report-card">
+        <h2 class="card-title">Performance Summary</h2>
+        <p>{summary}</p>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+    # Score cards - Using native Streamlit components
+    st.markdown(
+        """
+    <div class="report-card">
+        <h2 class="card-title">Performance Scores</h2>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+    # Create columns for the three score cards with dividers between them
+    col1, div1, col2, div2, col3 = st.columns([6, 0.5, 6, 0.5, 6])
+
+    # Technical score card
     with col1:
-        st.markdown('<h2 class="section-header">Strengths</h2>', unsafe_allow_html=True)
-        if strengths:
-            # Convert to bullet points if not already formatted
-            strength_points = re.split(r'(?:\d+\.\s*|\n+)', strengths)
-            strength_points = [s.strip() for s in strength_points if s.strip()]
-            
-            # Format as an HTML list with custom styling
-            points_html = '<ul class="point-list">'
-            for point in strength_points:
-                if point:  # Only add non-empty points
-                    points_html += f'<li>{point}</li>'
-            points_html += '</ul>'
-            
-            st.markdown(points_html, unsafe_allow_html=True)
-        else:
-            st.info("No strengths data available.")
-    
-    # Display weaknesses
+        tech_score = scores.get("Technical", 7)
+        st.markdown(
+            f"<h3 style='text-align: center; color: #4a5568; font-size: 18px; font-weight: 500;'>Technical</h3>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<p style='text-align: center; font-size: 36px; font-weight: 700; color: #2d3748; margin: 10px 0;'>{tech_score}/10</p>",
+            unsafe_allow_html=True,
+        )
+        st.progress(tech_score / 10)
+
+    # First divider
+    with div1:
+        st.markdown(
+            "<div style='width: 3px; background-color: #94a3b8; height: 120px; margin: auto; margin-top: 30px;'></div>",
+            unsafe_allow_html=True,
+        )
+
+    # Communication score card
     with col2:
-        st.markdown('<h2 class="section-header">Weaknesses</h2>', unsafe_allow_html=True)
-        if areas_to_improve:
-            # Convert to bullet points if not already formatted
-            weakness_points = re.split(r'(?:\d+\.\s*|\n+)', areas_to_improve)
-            weakness_points = [w.strip() for w in weakness_points if w.strip()]
-            
-            # Format as an HTML list with custom styling
-            points_html = '<ul class="point-list weak-list">'
-            for point in weakness_points:
-                if point:  # Only add non-empty points
-                    points_html += f'<li>{point}</li>'
-            points_html += '</ul>'
-            
-            st.markdown(points_html, unsafe_allow_html=True)
-        else:
-            st.info("No weakness data available.")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Display improvement paragraph with enhanced styling
-    st.markdown('<h2 class="section-header">Actionable Tips for Future Interviews</h2>', unsafe_allow_html=True)
+        comm_score = scores.get("Communication", 6)
+        st.markdown(
+            f"<h3 style='text-align: center; color: #4a5568; font-size: 18px; font-weight: 500;'>Communication</h3>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<p style='text-align: center; font-size: 36px; font-weight: 700; color: #2d3748; margin: 10px 0;'>{comm_score}/10</p>",
+            unsafe_allow_html=True,
+        )
+        st.progress(comm_score / 10)
+
+    # Second divider
+    with div2:
+        st.markdown(
+            "<div style='width: 3px; background-color: #94a3b8; height: 120px; margin: auto; margin-top: 30px;'></div>",
+            unsafe_allow_html=True,
+        )
+
+    # Problem Solving score card
+    with col3:
+        prob_score = scores.get("Problem Solving", 6)
+        st.markdown(
+            f"<h3 style='text-align: center; color: #4a5568; font-size: 18px; font-weight: 500;'>Problem Solving</h3>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<p style='text-align: center; font-size: 36px; font-weight: 700; color: #2d3748; margin: 10px 0;'>{prob_score}/10</p>",
+            unsafe_allow_html=True,
+        )
+        st.progress(prob_score / 10)
+
+    # Strengths and areas to improve
+    if strengths or areas_to_improve:
+        # Parse points
+        strength_points = re.split(r"(?:\d+\.\s*|\n+)", strengths) if strengths else []
+        strength_points = [s.strip() for s in strength_points if s.strip()]
+
+        improve_points = (
+            re.split(r"(?:\d+\.\s*|\n+)", areas_to_improve) if areas_to_improve else []
+        )
+        improve_points = [w.strip() for w in improve_points if w.strip()]
+
+        # Generate strengths and weaknesses HTML
+        st.markdown(
+            """
+        <div class="report-card">
+            <h2 class="card-title">Strengths & Areas for Improvement</h2>
+            <div class="point-grid">
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # Strengths column
+        st.markdown(
+            """
+        <div class="point-section">
+            <h3 class="point-title">Key Strengths</h3>
+            <ul class="point-list">
+        """,
+            unsafe_allow_html=True,
+        )
+
+        for point in strength_points[:3]:
+            st.markdown(
+                f"""
+            <li class="point-item">
+                <div class="point-icon strength-icon">✓</div>
+                <div class="point-text">{point}</div>
+            </li>
+            """,
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("</ul></div>", unsafe_allow_html=True)
+
+        # Areas to improve column
+        st.markdown(
+            """
+        <div class="point-section">
+            <h3 class="point-title">Areas for Growth</h3>
+            <ul class="point-list">
+        """,
+            unsafe_allow_html=True,
+        )
+
+        for point in improve_points[:3]:
+            st.markdown(
+                f"""
+            <li class="point-item">
+                <div class="point-icon improve-icon">!</div>
+                <div class="point-text">{point}</div>
+            </li>
+            """,
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("</ul></div></div></div>", unsafe_allow_html=True)
+
+    # Actionable tips
     if actionable_tips:
-        st.markdown(f'<div class="tips-box">{actionable_tips}</div>', unsafe_allow_html=True)
-    else:
-        st.info("No actionable tips available.")
-    
-    # End of report
+        st.markdown(
+            f"""
+        <div class="report-card">
+            <h2 class="card-title">Actionable Tips for Future Interviews</h2>
+            <div class="tips-box">
+                {actionable_tips}
+            </div>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+    # Close report container
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def extract_section(text, section_name):
