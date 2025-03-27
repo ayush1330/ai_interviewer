@@ -11,4 +11,3 @@ langchain-core==0.1.53
 langchain-openai==0.0.6
 pypdf==5.4.0
 chromadb==0.6.3
-pysqlite3-binary==0.5.2
