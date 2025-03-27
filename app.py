@@ -1,3 +1,16 @@
+# Fix SQLite version issue for ChromaDB
+import sys
+import platform
+
+# Try to use pysqlite3 on all platforms when deploying
+try:
+    __import__("pysqlite3")
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+except ImportError:
+    # If pysqlite3 is not available, use the default sqlite3
+    # This can lead to issues with ChromaDB if sqlite3 version is < 3.35.0
+    pass
+
 import streamlit as st
 import os
 from helpers import text_to_speech, autoplay_audio, speech_to_text
@@ -572,7 +585,15 @@ def main():
         pdf_paths.append(st.session_state.cover_letter_path)
 
     # Initialize VectorDB with the paths of the uploaded PDFs
-    vector_db = VectorDB(pdf_paths) if pdf_paths else None
+    try:
+        vector_db = VectorDB(pdf_paths) if pdf_paths else None
+        if vector_db and not vector_db.is_available:
+            st.warning(
+                "Document search capability is disabled due to environment limitations. The interview will proceed without referencing your documents."
+            )
+    except Exception as e:
+        st.error(f"Failed to initialize document processing: {str(e)}")
+        vector_db = None
 
     # Show chat interface title when interview has started
     if st.session_state.interview_started:
